@@ -50,36 +50,43 @@ class CacheObject(object):
     def __init__(self, object_uri):
         if not isinstance(object_uri, str):
             raise TypeError
-        self.object_uri = object_uri
-        r = self.path_file_re.match(self.object_uri)
+        r = self.path_file_re.match(object_uri)
         if r:
-            self.object_path = "" if r.group(1) is None else r.group(1)
-            self.object_name = r.group(2)
+            object_path = "" if r.group(1) is None else r.group(1)
+            object_name = r.group(2)
         else:
-            print("Invalid file name " + self.object_uri)
-            raise ValueError
-        self.origin_url = (CONF.proxy_host_url + self.object_uri)
-        self.object_folder_path = ("%s/%s" % (CONF.chunk_storage_path,
-                                   self.object_path))
-        self.stored_object_path = ("%s/%s" % (self.object_folder_path,
-                                   self.object_name))
-        upstream_headers = filler.getHeaders(self.origin_url)
-        self.object_size = int(upstream_headers.get('content-length'))
-        self.content_type = upstream_headers.get('content-type')
-        if not self.object_size:
-            raise RuntimeError
+            print("Invalid file name %s" % object_uri)
+            raise ValueError  # TODO: Lets 404 here.
+        self.origin_url = (CONF.proxy_host_url + object_uri)
+        self._headerValues()
+        self._ensurePathsExist(object_path)
+        self.stored_object_path = ("%s/%s/%s" % (CONF.chunk_storage_path,
+                                   object_path, object_name))
         self.total_chunks = math.ceil(self.object_size / CHUNKSIZE)
         self.last_chunk_size = (self.object_size -
                                 (self.total_chunks - 1) * CHUNKSIZE)
-        if not os.path.exists(CONF.chunk_storage_path):
-            os.makedirs(CONF.chunk_storage_path)
-        if not os.path.exists(self.object_folder_path):
-            os.makedirs(self.object_folder_path)
         self.chunks = []
         self.chunk_load = []
         for _ in range(self.total_chunks):
             self.chunks.append(False)
             self.chunk_load.append(False)
+
+    def _ensurePathsExist(self, object_path):
+        paths = ['']
+        if object_path != '':
+            paths.extend(object_path.strip('/').split('/'))
+        path = CONF.chunk_storage_path
+        for p in paths:
+            path = ("%s/%s" % (path, p))
+            if not os.path.exists(path):
+                os.makedirs(path)
+
+    def _headerValues(self):
+        upstream_headers = filler.getHeaders(self.origin_url)
+        self.object_size = int(upstream_headers.get('content-length'))
+        self.content_type = upstream_headers.get('content-type')
+        if not self.object_size:
+            raise RuntimeError  # TODO: Return 502
 
     def getRangeIterable(self, byte_start, byte_end):
         initial_chunk = math.floor(byte_start / CHUNKSIZE)
