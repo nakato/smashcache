@@ -20,6 +20,7 @@ import re
 
 from oslo_config import cfg
 from smashcache.cache import filler
+from smashcache.pages import errors
 
 opts = [
     cfg.StrOpt('chunk_storage_path',
@@ -49,14 +50,14 @@ class CacheObject(object):
 
     def __init__(self, object_uri):
         if not isinstance(object_uri, str):
-            raise TypeError
+            raise errors.error500()
         r = self.path_file_re.match(object_uri)
         if r:
             object_path = "" if r.group(1) is None else r.group(1)
             object_name = r.group(2)
         else:
             print("Invalid file name %s" % object_uri)
-            raise ValueError  # TODO: Lets 404 here.
+            raise errors.error404()
         self.origin_url = (CONF.proxy_host_url + object_uri)
         self._headerValues()
         self._ensurePathsExist(object_path)
@@ -72,6 +73,7 @@ class CacheObject(object):
             self.chunk_load.append(False)
 
     def _ensurePathsExist(self, object_path):
+        # TODO: Directory transversal
         paths = ['']
         if object_path != '':
             paths.extend(object_path.strip('/').split('/'))
@@ -86,7 +88,7 @@ class CacheObject(object):
         self.object_size = int(upstream_headers.get('content-length'))
         self.content_type = upstream_headers.get('content-type')
         if not self.object_size:
-            raise RuntimeError  # TODO: Return 502
+            raise errors.error502()
 
     def getRangeIterable(self, byte_start, byte_end):
         initial_chunk = math.floor(byte_start / CHUNKSIZE)
@@ -124,7 +126,7 @@ class CacheObject(object):
             while not self.chunks[chunk_number]:
                 eventlet.sleep()
         else:
-            raise RuntimeError
+            raise errors.error500()
 
     def _fetchChunk(self, chunk_number):
         byte_range = (chunk_number * CHUNKSIZE,
@@ -166,6 +168,8 @@ class Cache(object):
             self.objects[uri] = CacheObject(uri)
         if not end or end > self.objects[uri].object_size:
             end = self.objects[uri].object_size
+        if start > end:
+            raise errors.error400()
         if start == 0 and end == self.objects[uri].object_size:
             content_length = self.objects[uri].object_size
         else:

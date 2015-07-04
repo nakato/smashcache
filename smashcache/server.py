@@ -15,6 +15,7 @@
 
 import re
 from smashcache.cache import cache
+from smashcache.pages import errors
 
 
 byte_range_re = re.compile('^bytes=(\d+)\-(\d+)$')
@@ -27,10 +28,22 @@ def application(environ, start_response):
     path = environ.get('PATH_INFO')
     response_body = [b'']
     response_headers = []
-    response_headers.extend(c.headers(path))
+    try:
+        response_headers.extend(c.headers(path))
+    except errors.HTTPError as e:
+        status = e.status
+        response_headers = e.response_headers
+        start_response(status, response_headers)
+        return e.response_body
     if request_method == "HEAD":
         response_headers.extend([('Accept-Ranges', 'bytes')])
-        response_headers.extend(c.headersContentLength(path))
+        try:
+            response_headers.extend(c.headersContentLength(path))
+        except errors.HTTPError as e:
+            status = e.status
+            response_headers = e.response_headers
+            start_response(status, response_headers)
+            return e.response_body
         status = "200 OK"
     elif request_method == "GET":
         if 'HTTP_RANGE' in environ:
@@ -43,8 +56,14 @@ def application(environ, start_response):
             status = "200 OK"
             byte_start = 0
             byte_end = None
-        response_body = c.getIterator(path, response_headers, byte_start,
-                                      byte_end)
+        try:
+            response_body = c.getIterator(path, response_headers, byte_start,
+                                          byte_end)
+        except errors.HTTPError as e:
+            status = e.status
+            response_headers = e.response_headers
+            start_response(status, response_headers)
+            return e.response_body
     else:
         status = "501 NOT IMPLEMENTED"
         response_headers = []
