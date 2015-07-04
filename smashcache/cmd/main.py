@@ -20,4 +20,12 @@ from eventlet import wsgi
 
 
 def main():
+    eventlet.monkey_patch()
     wsgi.server(eventlet.listen(('', 8080)), smashcache.server.application)
+
+
+def debug():
+    from wsgiref.simple_server import make_server
+    httpd = make_server('', 8080, smashcache.server.application)
+    print("Serving on port 8080...")
+    httpd.serve_forever()
