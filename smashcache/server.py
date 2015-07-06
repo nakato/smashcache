@@ -18,7 +18,7 @@ from smashcache.cache import cache
 from smashcache.pages import errors
 
 
-byte_range_re = re.compile('^bytes=(\d+)\-(\d+)$')
+byte_range_re = re.compile('^bytes=(\d+)?\-(\d+)?$')
 
 c = cache.Cache()
 
@@ -47,15 +47,30 @@ def application(environ, start_response):
         status = "200 OK"
     elif request_method == "GET":
         if 'HTTP_RANGE' in environ:
-            status = "206 Partial Content"
             byte_range = environ.get('HTTP_RANGE')
+            print(byte_range)
             r = byte_range_re.match(byte_range)
-            byte_start = int(r.group(1))
-            byte_end = int(r.group(2))
+            if r == None:
+               e = errors.error400()
+               status = e.status
+               response_headers = e.response_headers
+               start_response(status, response_headers)
+               return e.response_body
+            byte_start = r.group(1)
+            byte_end = r.group(2)
         else:
-            status = "200 OK"
             byte_start = 0
             byte_end = None
+        if byte_start != None:
+            byte_start = int(byte_start)
+        else:
+            byte_start = 0
+        if byte_end != None:
+            byte_end = int(byte_end)
+        if byte_start == 0:
+            status = "200 OK"
+        else:
+            status = "206 Partial Content"
         try:
             response_body = c.getIterator(path, response_headers, byte_start,
                                           byte_end)

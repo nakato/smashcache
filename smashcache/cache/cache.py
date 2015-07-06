@@ -46,7 +46,7 @@ CHUNKSIZE = CONF.chunk_size * UNITS_Mi
 class CacheObject(object):
     """Storage of known objects"""
 
-    path_file_re = re.compile('^\/([\w+\/]+/)?([\w\._-]+\.\w+)$')
+    path_file_re = re.compile('^\/([\w+\-\+\/]+/)?([\w\.\+_-]+\.\w+)$')
 
     def __init__(self, object_uri):
         if not isinstance(object_uri, str):
