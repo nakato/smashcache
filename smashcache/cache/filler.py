@@ -19,7 +19,7 @@ import requests
 def getHeaders(url):
     r = requests.head(url)
     if r.status_code != 200:
-        print("Server returned" + r.status_code)
+        print("Server returned %s" % r.status_code)
         return None
     return r.headers
 
