@@ -28,6 +28,7 @@ def application(environ, start_response):
     path = environ.get('PATH_INFO')
     response_body = [b'']
     response_headers = []
+    response_headers.extend([('Accept-Ranges', 'bytes')])
     try:
         response_headers.extend(c.headers(path))
     except errors.HTTPError as e:
@@ -36,7 +37,6 @@ def application(environ, start_response):
         start_response(status, response_headers)
         return e.response_body
     if request_method == "HEAD":
-        response_headers.extend([('Accept-Ranges', 'bytes')])
         try:
             response_headers.extend(c.headersContentLength(path))
         except errors.HTTPError as e:
@@ -48,7 +48,6 @@ def application(environ, start_response):
     elif request_method == "GET":
         if 'HTTP_RANGE' in environ:
             byte_range = environ.get('HTTP_RANGE')
-            print(byte_range)
             r = byte_range_re.match(byte_range)
             if r == None:
                e = errors.error400()
