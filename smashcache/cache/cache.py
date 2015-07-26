@@ -173,9 +173,14 @@ class Cache(object):
         if start == 0 and end == self.objects[uri].object_size:
             content_length = self.objects[uri].object_size
         else:
+            # Sigh, so because 0 is "send first byte" and there are 20 bytes
+            # we're sending bytes 0-19.  If we tell chrome we are sending
+            # 0-20, that's 21 bytes and chrome freaks and sends a load of RST
+            #
+            # Todo: Look into how I handle send bytes and try to make this
+            # less of a case-by-case modification to headers.  It's confusing
             headers.extend([('Content-Range', ("bytes %s-%s/%s" %
-                           (start, end, self.objects[uri].object_size)))])
-            end += 1
+                           (start, end-1, self.objects[uri].object_size)))])
             content_length = end - start
         headers.extend([('Content-Length', str(content_length))])
         return self.objects[uri].getRangeIterable(start, end)
