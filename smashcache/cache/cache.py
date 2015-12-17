@@ -18,7 +18,7 @@ import math
 import os
 import re
 
-from oslo_config import cfg
+#from oslo_config import cfg
 from smashcache.cache import filler
 from smashcache.pages import errors
 
@@ -36,9 +36,18 @@ opts = [
 UNITS_Ki = 1024
 UNITS_Mi = 1024 ** 2
 
-CONF = cfg.CONF
-CONF.register_opts(opts)
-CONF(project='smashcache', default_config_files=None)
+#CONF = cfg.CONF
+#CONF.register_opts(opts)
+#CONF(project='smashcache', default_config_files=None)
+# Yes commenting out in git... :(
+
+# uwsgi, which I wanted to use, freaked out with oslo config, so fake it
+class conf(object):
+    chunk_storage_path = '/tmp/smashcache'
+    chunk_size = 8
+    proxy_host_url = 'http://s3.amz.com/place'
+
+CONF = conf
 
 CHUNKSIZE = CONF.chunk_size * UNITS_Mi
 
